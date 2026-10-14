@@ -1,0 +1,50 @@
+# Where each attack class and each defence layer lands in the frameworks
+# an AI governance buyer asks about. Kept as data so the report can cite it.
+# References are to the public documents; verify clause numbers against
+# the current edition before quoting them to a customer.
+
+attack_classes:
+  direct_injection:
+    owasp_llm_2025: LLM01 Prompt Injection
+    nist_ai_rmf: "MAP 5.1 (likelihood and magnitude of impacts), MEASURE 2.7 (security and resilience)"
+    iso_42001: "Clause 6.1.2 AI risk assessment; Annex A.6.2.6 AI system operation and monitoring"
+    eu_ai_act: "Art. 15 accuracy, robustness and cybersecurity (high-risk systems); recital on adversarial inputs"
+  indirect_injection:
+    owasp_llm_2025: LLM01 Prompt Injection (indirect), LLM08 Vector and Embedding Weaknesses where RAG is the carrier
+    nist_ai_rmf: "MEASURE 2.7; MANAGE 2.2 (mechanisms to sustain the value of deployed systems)"
+    iso_42001: "Annex A.6.2.6; A.7.4 data quality (untrusted content as input)"
+    eu_ai_act: "Art. 15(5) resilience against attempts to alter use, outputs or performance via data poisoning or adversarial examples"
+  jailbreak:
+    owasp_llm_2025: LLM01 Prompt Injection (jailbreak variant)
+    nist_ai_rmf: "MEASURE 2.7; GOVERN 1.7 (decommissioning / override policies)"
+    iso_42001: "Clause 8.4 AI system impact assessment; Annex A.9.3 processes for responsible use"
+    eu_ai_act: "Art. 15; Art. 14 human oversight where a persona override defeats a control"
+  exfiltration:
+    owasp_llm_2025: LLM02 Sensitive Information Disclosure, LLM07 System Prompt Leakage
+    nist_ai_rmf: "MEASURE 2.10 (privacy risk), MEASURE 2.7"
+    iso_42001: "Annex A.6.2.7 AI system security; A.10.2 confidentiality of information"
+    eu_ai_act: "Art. 15; Art. 10 data governance; GDPR interplay for personal data in context"
+  tool_abuse:
+    owasp_llm_2025: LLM06 Excessive Agency
+    nist_ai_rmf: "GOVERN 1.5 (ongoing monitoring), MANAGE 2.4 (mechanisms to override / deactivate), MEASURE 2.6 (safety)"
+    iso_42001: "Annex A.6.2.5 AI system verification and validation; A.9.4 intended use"
+    eu_ai_act: "Art. 14 human oversight; Art. 15 cybersecurity; agentic actions as 'use' changes"
+  obfuscation:
+    owasp_llm_2025: LLM01 Prompt Injection (evasion of input controls)
+    nist_ai_rmf: "MEASURE 2.7; MEASURE 1.1 (approaches and metrics for measurement)"
+    iso_42001: "Annex A.6.2.6 monitoring; control effectiveness evidence"
+    eu_ai_act: "Art. 15(5) measures against adversarial inputs"
+
+defence_layers:
+  input_detector:
+    what: weighted rule engine over normalised prompt and retrieved content; blocks before the model is called
+    evidence_for: "NIST AI RMF MEASURE 2.7 (technical controls tested), MGF for GenAI Testing & Assurance, AISCF security assessment"
+    limits: "pattern-based; a novel phrasing or a language it has no rule for passes through. Measure recall, not just FP."
+  output_filter:
+    what: post-generation check for canary leak and forbidden tool calls
+    evidence_for: "NIST AI RMF MANAGE 2.4 (override mechanism), ISO 42001 A.6.2.6"
+    limits: "only catches what it can name: an exact canary, a known tool. An encoded leak passes."
+  evaluation_harness:
+    what: this repo; repeatable corpus, per-class ASR, FP on benign, transcripts retained
+    evidence_for: "NIST AI RMF MEASURE 2.7 and MEASURE 2.5 (validity and reliability); ISO 42001 Clause 9.1 monitoring, measurement, analysis and evaluation"
+    limits: "corpus is small and hand-written; results are a lower bound on attack success, never a certificate"
