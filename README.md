@@ -64,7 +64,7 @@ Reports land in `results/` as Markdown (summary, survivors, blocked benign promp
 
 ## Results
 
-First runs, 2026-10-14: two small local models under Ollama, temperature 0, detector threshold 3.0, CPU only. The mock target's numbers are scripted and are not results.
+First runs, 2026-10-14: two small local models under Ollama, temperature 0, detector threshold 3.0, CPU only. The mock target's numbers are scripted and are not results. Full reports: [gemma3:4b](results/run_ollama_gemma3_4b_20261014-082829.md), [llama3.2:3b](results/run_ollama_llama3.2_3b_20261014-083404.md).
 
 | Target | ASR raw | after input | after both | detector recall | benign FP |
 |---|---|---|---|---|---|
