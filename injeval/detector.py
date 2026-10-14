@@ -67,7 +67,9 @@ def _normalise(text: str) -> str:
 
 class InputDetector:
     def __init__(self, rules_path: Path | None = None, threshold: float | None = None):
-        with (rules_path or RULES_PATH).open(encoding="utf-8") as fh:
+        rules_path = rules_path or RULES_PATH
+        self.name = "regex" if rules_path == RULES_PATH else f"regex:{rules_path.stem}"
+        with rules_path.open(encoding="utf-8") as fh:
             spec = yaml.safe_load(fh)
         self.threshold = threshold if threshold is not None else float(spec["threshold"])
         self.rules = [

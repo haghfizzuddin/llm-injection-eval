@@ -92,3 +92,16 @@ def load_attacks(path: Path | None = None) -> list[AttackCase]:
 def load_benign(path: Path | None = None) -> list[BenignCase]:
     path = path or CORPUS_DIR / "benign.yaml"
     return [BenignCase(**item) for item in _load_yaml(path)]
+
+
+CASE_SETS = ("original", "heldout-1", "heldout-2")
+
+
+def case_set(case_id: str) -> str:
+    """Which set a case belongs to, from its id prefix. The held-out sets
+    were written blind, after the detector they were first used to test."""
+    if case_id.startswith(("h2-", "ben-h2-")):
+        return "heldout-2"
+    if case_id.startswith("ho-"):
+        return "heldout-1"
+    return "original"
