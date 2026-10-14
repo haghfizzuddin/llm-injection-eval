@@ -1,7 +1,13 @@
 # Input detector rules. Weighted regex over the normalised text
-# (NFKC-folded, zero-width and Unicode-tag characters stripped, whitespace
-# collapsed), so the fullwidth, zero-width and tag-smuggling evasions are
-# folded away before any pattern runs.
+# (NFKC-folded, zero-width characters dropped, Unicode tag characters
+# decoded to the ASCII they carry, whitespace collapsed), so the fullwidth,
+# zero-width and tag-smuggling evasions are folded away before any pattern
+# runs. Patterns are case-insensitive; use (?-i:...) where case matters.
+#
+# v2 (2026-10-14) closed the gaps found in the first Ollama runs. Rules
+# added or changed in v2 are marked "v2". They were written from the
+# technique, not the case text, and checked against held-out cases written
+# blind and against hard-negative benign prompts that reuse the same words.
 #
 # scope: user | document | any. Document-scoped rules carry more weight
 # for the same phrase because instructions have no business being in data.
@@ -18,6 +24,16 @@ rules:
     scope: any
     pattern: '\b(ignore|disregard|forget|abaikan)\b.{0,20}\b(all |any |semua )?(previous|prior|above|earlier|sebelum)\b.{0,20}\b(instructions?|prompts?|rules?|arahan)\b'
     description: the canonical override phrase, English and Malay
+  - id: ignore-your-instructions
+    weight: 3.0
+    scope: any
+    pattern: '\b(ignore|disregard|forget|override|bypass|drop|discard)\b.{0,15}\byour\s+((previous|prior|current|original|system|safety|internal|existing|own|old)\s+)?(instructions?|prompts?|rules?|guidelines?|programming|configuration|system prompt)\b'
+    description: v2. override aimed at "your instructions" without previous/prior; the adjective slot is closed so "your setup instructions" does not fire
+  - id: ignore-instructions-ms
+    weight: 3.0
+    scope: any
+    pattern: '\b(abaikan|lupakan|jangan (ikut|ikuti|patuhi))\b.{0,20}\b(arahan|instruksi|peraturan|perintah|aturan|pedoman|panduan)\b.{0,20}\b(sebelum(nya)?|terdahulu|asal|sistem|anda|kamu|awak)\b|\b(abaikan|lupakan)\s+(semua|segala)\s+(arahan|instruksi|peraturan|perintah|aturan|pedoman|panduan)\b'
+    description: v2. Malay / Indonesian override in natural word order (noun before "sebelum"); needs a qualifier, so "abaikan arahan penghantaran lama" does not fire
   - id: ignore-previous-leet
     weight: 3.0
     scope: any
@@ -26,12 +42,23 @@ rules:
   - id: new-task-override
     weight: 2.0
     scope: any
-    pattern: '\b(new (task|instructions?|role)|your (only )?(job|task) (is )?now|from now on you are|you are now)\b'
+    pattern: '\b(new (task|instructions?|role|directive|duty|objective)|your (only |new |sole )?(job|task|role|purpose|duty) (is |will be )?now|from now on,? you|you are now|no longer (a |an |the )?(support|customer service)|(support|previous|old) role is (over|finished|done|ended))\b'
+    description: v2 widened (duty / objective, "role is finished", "no longer a support")
   - id: fake-system-tag
     weight: 2.5
     scope: any
-    pattern: '(\[\s*(system|developer|admin)\s*\]|<\|?(im_start|system)\|?>|^\s*(system|developer)\s*:)'
-    description: forged role markers inside content
+    pattern: '(\[\s*(system|developer|admin)\s*\]|<\|?(im_start|system)\|?>|^\s*(system|developer)\s*:|#{2,}\s*(system|developer)\b|"role"\s*:\s*"(system|developer)"|\bsystem (notice|message|override|alert|update)\s*:)'
+    description: forged role markers inside content; v2 adds markdown headers, chat-JSON roles and "SYSTEM NOTICE:" banners
+  - id: forged-dialogue
+    weight: 1.0
+    scope: user
+    pattern: '(\[\s*(system|developer|admin|user|assistant)\s*\]|<\|?(im_start|system|user|assistant)\|?>|\b(system|developer|user|assistant|human)\s*:|#{2,}\s*(system|developer|user|assistant)\b|"role"\s*:\s*"(system|developer|user|assistant)").{1,600}?(\[\s*(user|assistant|human)\s*\]|<\|?(im_start|user|assistant)\|?>|\b(user|assistant|human)\s*:|#{2,}\s*(user|assistant)\b|"role"\s*:\s*"(user|assistant)")'
+    description: v2. two role markers in one user turn, a forged transcript
+  - id: authority-claim-user
+    weight: 1.5
+    scope: user
+    pattern: '\b(message|update|notice|instructions?|directive|task|order|memo|policy)\b.{0,20}\b(from|by) (your|the) (developers?|creators?|admins?|administrators?|operators?|vendor|engineering team|system)\b|\b(this is|i am|i.m) (your|the) (developer|creator|admin|administrator|operator)\b'
+    description: v2. the user turn claims to speak for whoever configured the assistant
   - id: authority-claim-in-doc
     weight: 2.5
     scope: document
@@ -45,12 +72,28 @@ rules:
     weight: 2.0
     scope: document
     pattern: '<!--.*?(assistant|ai|ignore|append|reply).*?-->'
+  - id: output-directive-in-doc
+    weight: 2.0
+    scope: document
+    pattern: '\b(begin|start|open|prefix|end|close|finish)\b.{0,20}\b(reply|response|answer|output)\b.{0,20}\bwith\b|\b(reply|respond|answer)\b.{0,20}\b(only )?with (the )?(token|word|phrase|string|code word)\b|\b(your|the|any|every) (reply|response|answer) (must|should|has to) (begin|start|include|contain|end)\b'
+    description: v2. data telling the reader how to shape the reply; on its own it is a normal email ("start your reply with your order number"), so it does not block alone
+  - id: defer-to-document
+    weight: 2.0
+    scope: user
+    pattern: '\b(follow|obey|apply|honou?r|execute|carry out|use)\b.{0,40}\b(instructions?|directions?|guidance|template|formatting|format)\b.{0,40}\b(document|doc|email|e-mail|attachment|note|ticket|page|file)\b|\b(follow|obey|apply|honou?r|use)\b.{0,20}\b(document|doc|email|attachment|note|ticket)(.s)?\s+(instructions?|directions?|guidance|template|formatting)\b|\bdo (what|whatever) the (document|doc|email|attachment|note|ticket|page) (says|tells you|asks)\b'
+    description: v2. the user turn hands authority to the retrieved content; with output-directive-in-doc it closes the split payload, where neither half fires alone
 
   # ---- persona and refusal suppression
   - id: persona-dan
     weight: 2.5
     scope: user
-    pattern: '\b(DAN|do anything now|no rules|freed from (its|your) rules|developer mode)\b'
+    pattern: '(?-i:\bDAN\b)|\b(do anything now|no (rules|restrictions|limits|filters|guidelines)|without (any )?(rules|restrictions|limits|filters)|unrestricted|unfiltered|unconstrained|freed? from (its|your|all) (rules|restrictions|guidelines)|developer mode)\b'
+    description: v2 fix. "DAN" is case-sensitive now; case-insensitive it matched Malay "dan" (and) in every Malay sentence
+  - id: fiction-frame
+    weight: 1.0
+    scope: user
+    pattern: '\b(story|role-?play|pretend|imagine|fiction(al)?|screenplay|script|game|let.?s play)\b.{0,100}\b(chat ?bot|bot|assistant|ai|support agent)\b|\b(chat ?bot|bot|assistant|ai)\b.{0,60}\b(character|persona)\b'
+    description: v2. weak signal, a fiction frame around a bot; it only blocks next to a persona or override rule
   - id: refusal-suppression
     weight: 1.5
     scope: user
@@ -59,6 +102,11 @@ rules:
     weight: 1.5
     scope: user
     pattern: '\b(start|begin) your (reply|response|answer) with\b'
+  - id: affirmative-prefix
+    weight: 1.5
+    scope: user
+    pattern: '\b(start|begin|open|prefix)\b.{0,30}\bwith\b\s*["''“‘]?\s*(sure|absolutely|of course|certainly|okay|ok|here is|here.s)\b'
+    description: v2. the affirmative opener from Wei et al.; "begin your answer with yes or no" does not fire
 
   # ---- system prompt / secret extraction
   - id: system-prompt-extract

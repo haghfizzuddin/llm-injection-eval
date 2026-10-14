@@ -6,6 +6,7 @@
     python run_eval.py --target bedrock:anthropic.claude-3-haiku-20240307-v1:0
     python run_eval.py --target ollama:llama3.1 --classes tool_abuse,indirect_injection -v
     python run_eval.py --threshold 4.0       # sweep the detector threshold
+    python run_eval.py --rules old_rules.yaml  # compare detector versions
 
 Reports land in results/ as JSON (full transcripts) and Markdown (summary).
 """
@@ -29,6 +30,7 @@ def main() -> int:
     ap.add_argument("--target", default="mock", help="mock | ollama[:model] | bedrock:<model_id>")
     ap.add_argument("--classes", help="comma-separated subset of: " + ",".join(ATTACK_CLASSES))
     ap.add_argument("--threshold", type=float, help="override the input detector threshold")
+    ap.add_argument("--rules", help="detector rules YAML (default rules/detector_rules.yaml)")
     ap.add_argument("--out", default="results", help="output directory")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -38,7 +40,7 @@ def main() -> int:
         ap.error(f"unknown classes: {sorted(classes - set(ATTACK_CLASSES))}")
 
     target = make_target(args.target)
-    detector = InputDetector(threshold=args.threshold)
+    detector = InputDetector(rules_path=Path(args.rules) if args.rules else None, threshold=args.threshold)
     print(f"target={target.name} threshold={detector.threshold} classes={sorted(classes) if classes else 'all'}")
 
     report = run(target, detector=detector, classes=classes, verbose=args.verbose)
